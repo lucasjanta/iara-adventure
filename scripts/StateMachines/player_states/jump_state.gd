@@ -1,13 +1,22 @@
 extends State
 
 @onready var animated_sprite_2d: AnimatedSprite2D = $"../../AnimatedSprite2D"
+@onready var jump_circle: AnimatedSprite2D = $"../../jumpCircle"
 
 var dir: Vector2 = Vector2.ZERO
 var next_dir := Vector2.DOWN
+var jump_total_duration : float = 0.0
+var jump_duration : float = 0.0
 
 func enter():
 	player = get_parent().get_parent()
 	state_machine = get_parent()
+	jump_circle.visible = true
+	jump_circle.speed_scale = 1.0 / player.jump_force
+	jump_circle.play("default")
+	update_animation()
+	jump_duration = player.jump_force
+	jump_total_duration = player.jump_force
 
 func physics_update(delta):
 	
@@ -15,6 +24,8 @@ func physics_update(delta):
 		Input.get_axis("left", "right"),
 		Input.get_axis("up", "down")
 	)
+	
+	
 	
 	#if dir == Vector2.ZERO:
 		#player.velocity = Vector2.ZERO
@@ -30,49 +41,29 @@ func physics_update(delta):
 	
 	player.velocity = dir * player.speed
 	player.move_and_slide()
-	update_animation(dir)
+	
 	
 	if dir != Vector2.ZERO:
 		next_dir = dir
-
-func update_animation(direction: Vector2):
-	var anim := "Jump_Down"
-
-	# Diagonais
-	if abs(direction.x) > 0.5 and abs(direction.y) > 0.5:
-		if direction.y < 0:
-			if direction.x > 0:
-				anim = "Jump_Down_Side"
-				animated_sprite_2d.flip_h = false
-			else:
-				anim = "Jump_Down_Side"
-				animated_sprite_2d.flip_h = true
-		else:
-			if direction.x > 0:
-				anim = "Jump_Down_Side"
-				animated_sprite_2d.flip_h = false
-			else:
-				anim = "Jump_Down_Side"
-				animated_sprite_2d.flip_h = true
-
-	# Horizontal
-	elif abs(direction.x) > abs(direction.y):
-		if direction.x > 0:
-			anim = "Jump_Side"
-			animated_sprite_2d.flip_h = false
-		else:
-			anim = "Jump_Side"
-			animated_sprite_2d.flip_h = true
-
-	# Vertical
+		
+	if jump_duration > 0.0:
+		jump_duration -= delta
 	else:
-		if direction.y < 0:
-			anim = "Jump_Down"
-		else:
-			anim = "Jump_Down"
+		state_machine.change_state(state_machine.get_node("IdleState"))
+		return
+		
+	if jump_duration > jump_total_duration / 2:
+		animated_sprite_2d.offset.y -= player.atk_range * 3 * delta
+	else:
+		animated_sprite_2d.offset.y += player.atk_range * 3 * delta
 
-	animated_sprite_2d.play(anim)
+func update_animation():
+	animated_sprite_2d.play("Jump_Down")
+
+
+		
 
 func exit():
 	$"../IdleState".dir = next_dir
-	print("go to idle")
+	animated_sprite_2d.offset.y = 0
+	jump_circle.visible = false
